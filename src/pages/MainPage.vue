@@ -15,7 +15,7 @@
         <h1>ЗДЕСЬ УДОБНО <span>РАБОТАТЬ</span></h1>
         <p>Канбан-доски, календари, напоминания и<br> уведомления - все это бесплатно для тебя!</p>
 <!--        <button>Попробовать</button>-->
-        <button><router-link to="/auth" class="try-button">Попробовать</router-link></button>
+        <button class="try-button"><router-link to="/auth">Попробовать</router-link></button>
       </div>
       <div class="description">
         <h3>планировщик для команд и для себя</h3>
@@ -94,7 +94,26 @@
           <h4>Сделали все, чтобы рутинные действия отнимали как можно меньше времени</h4>
         </div>
         <div class="functions-img">
-
+          <div class="function-1">
+            <img src="/img/Group%204.svg">
+            <h2>Простая структура</h2>
+            <p>Рабочее пространство → Проекты → Календарь и доски</p>
+          </div>
+          <div class="function-1">
+            <img src="/img/Group%205.svg">
+            <h2>Разные темы</h2>
+            <p>Работай с комфортом, меня темы под комфортную. Даже ночью</p>
+          </div>
+          <div class="function-1">
+            <img src="/img/Group%206.svg">
+            <h2>Уведомления </h2>
+            <p>На почту, в браузере</p>
+          </div>
+          <div class="function-1">
+            <img src="/img/Group%207.svg">
+            <h2>Ооочень быстрый</h2>
+            <p>Мгновенно переключайся между проектами</p>
+          </div>
         </div>
         <!-- <div class="functions-info">
             <ul>
@@ -110,24 +129,26 @@
                 <li>Мгновенно переключайся между проектами</li>
             </ul>
         </div> -->
-        <div class="functions-info-img">
-          <img src="/img/Group%204.svg" alt="">
-          <img src="/img/Group%205.svg" alt="">
-          <img src="/img/Group%206.svg" alt="">
-          <img src="/img/Group%207.svg" alt="">
-        </div>
-        <div class="functions-info">
-          <p>Простая структура</p>
-          <p>Разные темы</p>
-          <p>Уведомления</p>
-          <p>Ооочень быстрый</p>
-        </div>
-        <div class="functions-info-description">
-          <p>Рабочее пространство → Проекты → Календарь и доски</p>
-          <p>Работай с комфортом, меня темы под комфортную. Даже ночью</p>
-          <p>На почту, в браузере</p>
-          <p>Мгновенно переключайся между проектами</p>
-        </div>
+<!--        <div class="functions-info-img">-->
+<!--          <img src="/img/Group%204.svg" alt="">-->
+<!--          <img src="/img/Group%205.svg" alt="">-->
+<!--          <img src="/img/Group%206.svg" alt="">-->
+<!--          <img src="/img/Group%207.svg" alt="">-->
+<!--        </div>-->
+<!--        <div class="functions-info">-->
+<!--          <p>Простая структура</p>-->
+<!--          <p>Разные темы</p>-->
+<!--          <p>Уведомления</p>-->
+<!--          <p>Ооочень быстрый</p>-->
+<!--        </div>-->
+<!--        <div class="functions-info-description">-->
+<!--          <p>Рабочее пространство → Проекты → Календарь и доски</p>-->
+<!--          <p>Работай с комфортом, меня темы под комфортную. Даже ночью</p>-->
+<!--          <p>На почту, в браузере</p>-->
+<!--          <p>Мгновенно переключайся между проектами</p>-->
+<!--        </div>-->
+
+
       </div>
       <div class="try-it">
         <img src="/img/moondwhite%203.svg" alt="">
@@ -183,6 +204,7 @@
 .notifications-block-3 {
   display: flex;
   flex-direction: column;
+  margin-left: 3em;
 }
 
 .notifications-block h2 {
@@ -196,6 +218,30 @@
 
 .functions {
   color: black;
+
+}
+
+.function-1 {
+  width: 13em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.function-1 h2 {
+  width: 10em;
+  text-align: center;
+}
+
+.function-1 p {
+  color: #7B7B7B;
+  width: 13em;
+}
+
+
+.functions-img {
+  display: flex;
+  justify-content: space-evenly;
 }
 
 .functions-info ul {
@@ -210,6 +256,7 @@
   gap: 3em;
 }
 .functions-info-img {
+  margin-top: 3em;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -222,6 +269,7 @@
   font-size: 0.75em;
 }
 .try-it {
+  margin-top: 5em;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -231,7 +279,6 @@
   font-size: 2em;
   color: white;
   justify-content: center;
-  margin: 0; /* Убираем стандартные отступы */
   padding: 20px; /* Добавляем внутренние отступы */
   box-sizing: border-box; /* Чтобы padding не увеличивал ширину */
 }
@@ -325,8 +372,14 @@ main {
 }
 
 .try-button {
+  margin-top: 1.5em;
   color: white;
-
+  background-color: #4937B5;
+  width: 20em;
+  height: 3em;
+  border-radius: 50px;
+  font-size: 26px;
+  font-family: 'Marmelad', sans-serif;
 }
 
 .feedback-1 h5 {

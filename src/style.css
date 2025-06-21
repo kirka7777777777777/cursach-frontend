@@ -21,7 +21,7 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: white;
   text-decoration: inherit;
 }
 a:hover {
@@ -41,17 +41,17 @@ h1 {
   line-height: 1.1;
 }
 
-button {
-  border-radius: 39.5px;
-  border: 1px solid transparent;
-  padding: 0.9em 7em;
-  font-size: 1.1em;
-  font-weight: 500;
-  font-family: Marmelad, sans-serif;
-  background-color: #4937B5;
-  cursor: pointer;
-  transition: border-color 0.20s;
-}
+/*button {*/
+/*  border-radius: 39.5px;*/
+/*  border: 1px solid transparent;*/
+/*  padding: 0.9em 7em;*/
+/*  font-size: 1.1em;*/
+/*  font-weight: 500;*/
+/*  font-family: Marmelad, sans-serif;*/
+/*  background-color: #4937B5;*/
+/*  cursor: pointer;*/
+/*  transition: border-color 0.20s;*/
+/*}*/
 button:hover {
   border-color: #646cff;
 }

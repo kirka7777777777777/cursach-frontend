@@ -45,6 +45,12 @@
                 @dragstart="startDrag($event, card)"
             >
               <p class="task-title">{{ card.title || 'Без названия' }}</p>
+              <div class="task-assignee" v-if="card.assigned_to">
+                <span class="assignee-label">Исполнитель:</span>
+                <span class="assignee-name">
+    {{ card.user_assigned?.name || 'Загрузка...' }}
+  </span>
+              </div>
               <div class="task-footer">
                 <span class="task-deadline" v-if="card.deadline">
                   Дедлайн: {{ formatDate(card.deadline) }}
@@ -55,7 +61,13 @@
                     <button @click.stop="openEditModal(card)" class="edit-button">✏️</button>
                     <button @click.stop="confirmDelete(card)" class="delete-button">🗑️</button>
                   </div>
-                  <button @click.stop="assignCard(card)" class="take-button">Взять</button>
+                  <button
+                      @click.stop="assignCard(card)"
+                      class="take-button"
+                      v-if="!card.assigned_to"
+                  >
+                    Взять
+                  </button>
                 </div>
               </div>
             </div>
@@ -79,6 +91,12 @@
                 @dragstart="startDrag($event, card)"
             >
               <p class="task-title">{{ card.title || 'Без названия' }}</p>
+              <div class="task-assignee" v-if="card.assigned_to">
+                <span class="assignee-label">Исполнитель:</span>
+                <span class="assignee-name">
+    {{ card.user_assigned?.name || 'Загрузка...' }}
+  </span>
+              </div>
               <div class="task-footer">
                 <span class="task-deadline" v-if="card.deadline">
                   Дедлайн: {{ formatDate(card.deadline) }}
@@ -92,7 +110,7 @@
                   <button
                       @click.stop="moveToReview(card)"
                       class="review-button"
-                      v-if="userHasRole(['admin', 'manager'])"
+                      v-if="card.assigned_to === user.id"
                   >
                     На проверку
                   </button>
@@ -119,6 +137,12 @@
                 @dragstart="startDrag($event, card)"
             >
               <p class="task-title">{{ card.title || 'Без названия' }}</p>
+              <div class="task-assignee" v-if="card.assigned_to">
+                <span class="assignee-label">Исполнитель:</span>
+                <span class="assignee-name">
+    {{ card.user_assigned?.name || 'Загрузка...' }}
+  </span>
+              </div>
               <div class="task-footer">
                 <span class="task-deadline" v-if="card.deadline">
                   Дедлайн: {{ formatDate(card.deadline) }}
@@ -140,6 +164,7 @@
                     <button
                         @click.stop="approveCard(card)"
                         class="approve-button"
+                        v-if="userHasRole(['admin', 'manager'])"
                     >
                       Готово
                     </button>
@@ -167,6 +192,12 @@
                 @dragstart="startDrag($event, card)"
             >
               <p class="task-title">{{ card.title || 'Без названия' }}</p>
+              <div class="task-assignee" v-if="card.assigned_to">
+                <span class="assignee-label">Исполнитель:</span>
+                <span class="assignee-name">
+    {{ card.user_assigned?.name || 'Загрузка...' }}
+  </span>
+              </div>
               <div class="task-footer">
                 <span class="task-deadline" v-if="card.deadline">
                   Дедлайн: {{ formatDate(card.deadline) }}
@@ -454,21 +485,23 @@ const deleteCard = async (card) => {
 // Метод для перемещения карточки на проверку
 const moveToReview = async (card) => {
   try {
-    if (!userHasRole(['admin', 'manager'])) {
-      alert('Только менеджеры и администраторы могут отправлять карточки на проверку');
+    const user = JSON.parse(localStorage.getItem('user'));
+
+    // Проверяем, что карточка назначена текущему пользователю
+    if (card.assigned_to !== user.id) {
+      alert('Вы можете отправлять на проверку только свои карточки');
       return;
     }
 
     await api.put(`/cards/${card.id}`, {
-      ...card,
       status: 'review'
     });
     await fetchCards();
   } catch (error) {
     console.error('Ошибка при перемещении на проверку:', error);
+    alert(error.response?.data?.message || 'Ошибка при перемещении на проверку');
   }
 };
-
 // Метод для одобрения карточки
 const approveCard = async (card) => {
   try {
@@ -516,7 +549,7 @@ const rejectCard = async () => {
 
 const fetchCards = async () => {
   try {
-    const response = await api.get('/cards');
+    const response = await api.get('/cards?with=userAssigned');
     if (response.data && Array.isArray(response.data)) {
       cards.value = response.data.map(card => ({
         id: card.id,
@@ -525,7 +558,8 @@ const fetchCards = async () => {
         deadline: card.deadline || null,
         status: card.status || 'todo',
         assigned_to: card.assigned_to || null,
-        created_by: card.created_by
+        created_by: card.created_by,
+        user_assigned: card.user_assigned // Добавляем данные об исполнителе
       }));
     }
   } catch (error) {
@@ -580,7 +614,10 @@ const addNewCard = async () => {
       created_by: user.id
     }
 
-    const response = await api.post('/cards', taskData)
+    const response = await api.post('/cards', {
+      ...taskData,
+      assignee_name: user.name // Добавляем имя создателя
+    });
 
     cards.value.push({
       ...response.data,
@@ -607,28 +644,27 @@ const addNewCard = async () => {
 const assignCard = async (card) => {
   try {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user || !user.id) {
-      console.error('Пользователь не авторизован');
+    if (!user?.id) {
       router.push('/auth');
       return;
     }
 
-    // Проверяем, может ли пользователь взять карточку
-    if (card.status === 'review' && !userHasRole(['admin', 'manager'])) {
-      alert('Вы не можете взять карточку на проверку');
+    // Проверяем, можно ли взять карточку
+    if (card.assigned_to && card.assigned_to !== user.id) {
+      alert('Вы можете брать только неназначенные карточки');
       return;
     }
 
     await api.put(`/cards/${card.id}`, {
-      ...card,
       assigned_to: user.id,
       status: 'in_progress'
     });
     await fetchCards();
   } catch (error) {
     console.error('Ошибка при назначении карточки:', error);
+    alert(error.response?.data?.message || 'Ошибка при назначении карточки');
   }
-}
+};
 
 const startDrag = (event, card) => {
   event.dataTransfer.setData('text/plain', card.id);
@@ -641,33 +677,26 @@ const onDrop = async (event, newStatus) => {
   try {
     const user = JSON.parse(localStorage.getItem('user'));
 
-    // Проверяем права на перемещение
-    if (newStatus === 'review' && !userHasRole(['admin', 'manager'])) {
-      alert('Только менеджеры и администраторы могут перемещать карточки на проверку');
+    // Для админов и менеджеров разрешаем любые перемещения
+    if (userHasRole(['admin', 'manager'])) {
+      await api.put(`/cards/${draggedCard.value.id}`, {
+        status: newStatus,
+        // Сохраняем текущего исполнителя или назначаем нового
+        assigned_to: draggedCard.value.assigned_to || user.id
+      });
+      await fetchCards();
       return;
     }
 
-    if (draggedCard.value.status === 'review' && newStatus !== 'done' && !userHasRole(['admin', 'manager'])) {
-      alert('Вы не можете вернуть карточку из проверки');
-      return;
+    // Логика для обычных пользователей остается прежней
+    if (newStatus === 'in_progress') {
+      await assignCard(draggedCard.value);
+    } else if (newStatus === 'review') {
+      await moveToReview(draggedCard.value);
     }
-
-    await api.put(`/cards/${draggedCard.value.id}`, {
-      status: newStatus,
-      title: draggedCard.value.title,
-      description: draggedCard.value.description || '',
-      deadline: draggedCard.value.deadline || null,
-      assigned_to: draggedCard.value.assigned_to || null,
-      created_by: draggedCard.value.created_by
-    });
-    await fetchCards();
   } catch (error) {
     console.error('Ошибка при перемещении карточки:', error);
-    if (error.response?.status === 401) {
-      router.push('/auth');
-    } else {
-      alert(error.response?.data?.message || 'Ошибка при перемещении');
-    }
+    alert(error.response?.data?.message || 'Ошибка при перемещении карточки');
   }
 };
 
@@ -699,6 +728,21 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+
+.task-assignee {
+  margin: 5px 0;
+  font-size: 0.8em;
+  color: #555;
+}
+
+.assignee-label {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.assignee-name {
+  color: #1e3a8a;
+}
 
 /* Добавить в секцию стилей */
 .admin-actions {
