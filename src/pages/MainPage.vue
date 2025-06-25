@@ -153,7 +153,7 @@
       <div class="try-it">
         <img src="/img/moondwhite%203.svg" alt="">
         <p>Канбан-доски, календари, напоминания и<br> уведомления - все это бесплатно для тебя!</p>
-        <button>Попробовать</button>
+        <button class="try-it-down"><router-link to="/auth">Попробовать</router-link></button>
       </div>
     </main>
   </div>
@@ -308,6 +308,7 @@
   background: #ffffff;
   padding: 30px;
   color: black;
+  font-size: 17px;
 }
 .testimonial img{
   width: 100px;
@@ -361,6 +362,7 @@ header ul a:hover {
 }
 
 header ul img {
+  padding-right: 2em;
   height: 3em; /* Установим высоту логотипа */
   vertical-align: middle; /* Выравнивание по центру относительно текста */
   margin: 0 1em; /* Отступы вокруг логотипа */
@@ -370,6 +372,13 @@ header ul img {
 main {
   padding: 20px; /* Общий отступ для контента */
 }
+
+
+.try-it-down a {
+  font-family: 'Marmelad', sans-serif;
+  color: #4937B5;
+}
+
 
 .try-button {
   margin-top: 1.5em;

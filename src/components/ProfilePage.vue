@@ -1,20 +1,32 @@
 <template>
   <div class="profile-container">
     <div class="profile-wrapper">
-      <!-- Боковая панель как в Workspace -->
+      <!-- Боковая панель -->
       <div class="sidebar">
         <div class="workspace-label">Профиль</div>
-        <img
-            :src="user.avatar || 'https://storage.googleapis.com/a1aa/image/5468f7e5-6463-4ead-36a3-acbeb3431519.jpg'"
-            alt="Аватар"
-            class="profile-img-large"
-        >
+
+        <div class="avatar-section">
+          <img
+              :src="user.avatar || defaultAvatar"
+              alt="Аватар"
+              class="profile-img-large"
+          >
+          <button @click="showAvatarModal = true" class="change-avatar-button">
+            Сменить аватар
+          </button>
+        </div>
+
         <nav class="sidebar-nav">
           <router-link to="/workspace">Рабочее пространство</router-link>
           <router-link to="/notifications">Уведомления</router-link>
           <router-link to="/reminders">Напоминания</router-link>
         </nav>
-        <div class="logo">M0ND</div>
+
+        <button @click="logout" class="logout-button">Выйти</button>
+
+        <div class="logo">
+          <img src="/img/moond%203.svg" alt="Логотип moond">
+        </div>
       </div>
 
       <!-- Основное содержимое профиля -->
@@ -50,19 +62,17 @@
         <form v-else @submit.prevent="updateProfile" class="profile-form">
           <div class="form-group">
             <label>Имя:</label>
-            <input v-model="editForm.name" type="text" class="form-input" placeholder="Новое имя">
+            <input v-model="editForm.name" type="text" class="form-input" required>
           </div>
           <div class="form-group">
             <label>Email:</label>
-            <input v-model="editForm.email" type="email" class="form-input" placeholder="Новый email">
+            <input v-model="editForm.email" type="email" class="form-input" required>
           </div>
           <div class="form-group">
             <label>Новый пароль:</label>
-            <input v-model="editForm.password" type="password" class="form-input" placeholder="Новый пароль">
+            <input v-model="editForm.password" type="password" class="form-input" placeholder="Оставьте пустым, если не хотите менять">
           </div>
-          <div class="form-actions">
-            <button type="submit" class="submit-button">Сохранить</button>
-          </div>
+          <button type="submit" class="submit-button">Сохранить изменения</button>
         </form>
 
         <div class="profile-stats" v-if="stats">
@@ -84,6 +94,35 @@
         </div>
       </div>
     </div>
+
+    <!-- Модальное окно выбора аватара -->
+    <div v-if="showAvatarModal" class="avatar-modal">
+      <div class="avatar-modal-content">
+        <div class="avatar-modal-header">
+          <h3>Выберите аватар</h3>
+          <button @click="showAvatarModal = false" class="avatar-modal-close">
+            &times;
+          </button>
+        </div>
+        <div class="avatar-grid">
+          <div
+              v-for="(avatar, index) in availableAvatars"
+              :key="index"
+              class="avatar-option"
+              @click="selectAvatar(avatar)"
+              :class="{ 'selected': selectedAvatar === avatar }"
+          >
+            <img :src="avatar" alt="Аватар" class="avatar-preview">
+          </div>
+        </div>
+        <div class="avatar-modal-footer">
+          <button @click="showAvatarModal = false" class="cancel-button">Отмена</button>
+          <button @click="updateAvatar" class="submit-button" :disabled="!selectedAvatar">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -97,7 +136,8 @@ const user = ref({
   name: '',
   email: '',
   roles: [],
-  created_at: null
+  created_at: null,
+  avatar: ''
 })
 const stats = ref(null)
 const editMode = ref(false)
@@ -106,28 +146,23 @@ const editForm = ref({
   email: '',
   password: ''
 })
+const showAvatarModal = ref(false)
+const selectedAvatar = ref(null)
+const defaultAvatar = '/img/avatars/default.png'
 
-const confirmDeleteAccount = async () => {
-  if (confirm('Вы уверены, что хотите удалить свой аккаунт? Это действие необратимо.')) {
-    try {
-      await api.delete('/delete-account')
-      // Очищаем данные пользователя и перенаправляем на страницу авторизации
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('user')
-      router.push('/login')
-    } catch (error) {
-      console.error('Ошибка удаления аккаунта:', error)
-      alert(error.response?.data?.message || 'Ошибка при удалении аккаунта')
-    }
-  }
-}
+// ЗДЕСЬ ВСТАВЬТЕ СВОИ URL ИЗОБРАЖЕНИЙ
+const availableAvatars = ref([
+  '/img/avatars/иконки 1.png',
+  '/img/avatars/иконки 2.png',
+  '/img/avatars/иконки 3.png',
+  '/img/avatars/иконки 4.png',
+  defaultAvatar
+])
 
 const fetchUserData = async () => {
   try {
     const response = await api.get('/user')
     user.value = response.data
-
-    // Инициализация формы после загрузки данных
     editForm.value = {
       name: user.value.name,
       email: user.value.email,
@@ -139,30 +174,67 @@ const fetchUserData = async () => {
   } catch (error) {
     console.error('Ошибка загрузки профиля:', error)
     if (error.response?.status === 401) {
-      router.push('/login')
+      router.push('/')
     }
   }
 }
 
 const updateProfile = async () => {
   try {
-    if (!editForm.value.name.trim()) {
-      alert('Поле "Имя" обязательно для заполнения')
-      return
-    }
-
-    if (!editForm.value.email.trim()) {
-      alert('Поле "Email" обязательно для заполнения')
-      return
-    }
-
     await api.put('/user/profile', editForm.value)
     await fetchUserData()
-    editForm.value.password = '' // Сброс пароля
     editMode.value = false
   } catch (error) {
     console.error('Ошибка обновления профиля:', error)
     alert(error.response?.data?.message || 'Ошибка при обновлении профиля')
+  }
+}
+
+const confirmDeleteAccount = async () => {
+  if (confirm('Вы уверены, что хотите удалить свой аккаунт? Это действие необратимо.')) {
+    try {
+      await api.delete('/user')
+      localStorage.removeItem('authToken')
+      localStorage.removeItem('user')
+      router.push('/')
+    } catch (error) {
+      console.error('Ошибка удаления аккаунта:', error)
+      alert(error.response?.data?.message || 'Ошибка при удалении аккаунта')
+    }
+  }
+}
+
+const selectAvatar = (avatar) => {
+  selectedAvatar.value = avatar
+}
+
+const updateAvatar = async () => {
+  if (!selectedAvatar.value) return;
+
+  try {
+    await api.put('/user/profile', {
+      avatar: selectedAvatar.value
+    });
+
+    // Обновляем данные пользователя
+    user.value.avatar = selectedAvatar.value;
+    showAvatarModal.value = false;
+
+    alert('Аватар успешно обновлён!');
+  } catch (error) {
+    console.error('Ошибка при обновлении аватара:', error);
+    alert('Не удалось обновить аватар');
+  }
+}
+
+const logout = async () => {
+  try {
+    await api.post('/logout')
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('user')
+    router.push('/')
+  } catch (error) {
+    console.error('Ошибка при выходе:', error)
   }
 }
 
@@ -178,93 +250,122 @@ onMounted(() => {
 </script>
 
 <style scoped>
-
-.delete-account-button {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 14px;
-  margin-right: 10px;
-}
-
-.delete-account-button:hover {
-  background-color: #c82333;
-}
-
 .profile-container {
-  background-color: #d1d5db;
+  width: 100%;
   min-height: 100vh;
+  background-color: #f5f5f5;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px;
 }
 
 .profile-wrapper {
-  background-color: white;
   width: 100%;
   max-width: 1200px;
-  height: 600px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   display: flex;
-  border: 1px solid #e5e7eb;
 }
 
 .sidebar {
-  width: 120px;
-  border-right: 1px solid #e5e7eb;
+  width: 200px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-right: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 16px;
-  position: relative;
 }
 
 .profile-img-large {
-  width: 80px;
-  height: 80px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
-  object-fit: cover;
-  margin-top: 32px;
-  border: 2px solid #1e3a8a;
+  border: 3px solid #4937B5;
+  margin: 20px 0;
+}
+
+.change-avatar-button {
+  background: #4937B5;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.change-avatar-button:hover {
+  background: #3a2b8f;
+}
+
+.logout-button {
+  margin-top: auto;
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 14px;
+}
+
+.logout-button:hover {
+  background: #d32f2f;
 }
 
 .profile-content {
   flex: 1;
-  padding: 20px;
-  overflow-y: auto;
+  padding: 30px;
 }
 
 .profile-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 10px;
+  margin-bottom: 30px;
+}
+
+.delete-account-button {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.edit-profile-button {
+  background: #4937B5;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .profile-info {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
 .info-row {
   display: flex;
-  align-items: center;
+  margin-bottom: 15px;
 }
 
 .info-label {
   font-weight: bold;
   min-width: 150px;
-  color: #4b5563;
+  color: #555;
 }
 
 .info-value {
-  color: #1e293b;
+  color: #333;
 }
 
 .profile-form {
@@ -274,122 +375,142 @@ onMounted(() => {
   gap: 20px;
 }
 
-.profile-stats {
-  margin-top: 40px;
-  padding-top: 20px;
-  border-top: 1px solid #e5e7eb;
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.submit-button {
+  background: #4937B5;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 10px;
+}
+
+.submit-button:hover {
+  background: #3a2b8f;
+}
+
+.submit-button:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  margin-top: 15px;
+  margin-top: 20px;
 }
 
 .stat-card {
-  background-color: #f8fafc;
+  background: #f8f9fa;
+  padding: 20px;
   border-radius: 8px;
-  padding: 15px;
   text-align: center;
-  border: 1px solid #e5e7eb;
 }
 
 .stat-value {
   font-size: 24px;
   font-weight: bold;
-  color: #1e3a8a;
+  color: #4937B5;
   display: block;
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #64748b;
-}
-
-.edit-profile-button {
-  background-color: #1e3a8a;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
+  color: #666;
   font-size: 14px;
 }
 
-.edit-profile-button:hover {
-  background-color: #1e40af;
-}
-
-/* Общие стили формы (совместимость с Workspace) */
-.form-group {
+/* Стили для модального окна аватара */
+.avatar-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-.form-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 14px;
+.avatar-modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  padding: 20px;
 }
 
-.form-input:focus {
-  outline: none;
-  border-color: #1e40af;
-}
-
-.submit-button {
-  background-color: #1e3a8a;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 10px 20px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.submit-button:hover {
-  background-color: #1e40af;
-}
-
-/* Стили для боковой панели (как в Workspace) */
-.workspace-label {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  font-size: 12px;
-  color: #4b5563;
-  user-select: none;
-}
-
-.sidebar-nav {
+.avatar-modal-header {
   display: flex;
-  flex-direction: column;
-  gap: 24px;
-  margin-top: 32px;
-}
-
-.sidebar-nav a {
-  font-size: 14px;
-  color: #1e3a8a;
-  text-decoration: none;
-}
-
-.sidebar-nav a:hover {
-  text-decoration: underline;
-}
-
-.logo {
-  font-family: 'Times New Roman', serif;
-  font-size: 28px;
-  font-weight: bold;
-  color: #1e3a8a;
-  line-height: 1;
-  user-select: none;
-  margin-top: auto;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+}
+
+.avatar-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.avatar-option {
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  transition: all 0.3s;
+  overflow: hidden;
+}
+
+.avatar-option.selected {
+  border-color: #4937B5;
+}
+
+.avatar-preview {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+}
+
+.avatar-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancel-button {
+  background: #f0f0f0;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-button:hover {
+  background: #e0e0e0;
 }
 </style>

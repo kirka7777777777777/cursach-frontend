@@ -3,12 +3,14 @@
     <div class="workspace-wrapper">
       <!-- Левая боковая панель -->
       <div class="sidebar">
-        <div class="workspace-label">Рабочее пространство</div>
-        <img
-            src="https://storage.googleapis.com/a1aa/image/5468f7e5-6463-4ead-36a3-acbeb3431519.jpg"
-            alt="Аватар"
-            class="profile-img"
-        >
+        <router-link to="/profile" class="avatar-link">
+          <img
+              :src="user?.avatar || defaultAvatar"
+              alt="Аватар"
+              class="profile-img"
+          >
+        </router-link>
+
         <router-link to="/profile" class="profile-link">
           Профиль
         </router-link>
@@ -23,7 +25,9 @@
           <i class="fas fa-plus"></i>
         </button>
 
-        <div class="logo">M0ND</div>
+        <div class="logo">
+          <img src="/img/moond%203.svg" alt="Логотип moond">
+        </div>
       </div>
 
       <!-- Основная область с колонками -->
@@ -177,7 +181,7 @@
 
         <!-- Колонка "Готово" -->
         <div
-            class="column"
+            class="column-ready"
             @drop="onDrop($event, 'done')"
             @dragover.prevent
             @dragenter.prevent
@@ -406,6 +410,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api/index.js'
 
+const defaultAvatar = 'https://storage.googleapis.com/a1aa/image/5468f7e5-6463-4ead-36a3-acbeb3431519.jpg'
+
 const router = useRouter()
 const cards = ref([])
 const showAddCardModal = ref(false)
@@ -430,24 +436,56 @@ const userHasRole = (roles) => {
   if (!user.value || !user.value.roles) return false;
   return user.value.roles.some(role => roles.includes(role));
 }
+
+const logout = async () => {
+  try {
+    await api.post('/logout');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    router.push('/login');
+  } catch (error) {
+    console.error('Ошибка при выходе:', error);
+  }
+};
+
+const updateAvatar = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('avatar', file);
+
+  try {
+    const response = await api.post('/profile/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    // Обновляем аватар в интерфейсе
+    const user = JSON.parse(localStorage.getItem('user'));
+    user.avatar = response.data.avatar;
+    localStorage.setItem('user', JSON.stringify(user));
+
+    // Обновляем данные пользователя
+    await fetchUser();
+  } catch (error) {
+    console.error('Ошибка при обновлении аватара:', error);
+  }
+};
+
+
+
+
 // Улучшенный метод получения пользователя
 const fetchUser = async () => {
   try {
-    const response = await api.get('/user');
-    user.value = response.data;
-
-    // Если роли не пришли, запрашиваем отдельно
-    if (!user.value.roles) {
-      const rolesResponse = await api.get('/user/roles');
-      user.value.roles = rolesResponse.data.roles || [];
-    }
-
-    console.log('User roles:', user.value.roles); // Для отладки
+    const response = await api.get('/user')
+    user.value = response.data
   } catch (error) {
-    console.error('Ошибка загрузки пользователя:', error);
+    console.error('Ошибка загрузки пользователя:', error)
     if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      router.push('/login');
+      router.push('/')
     }
   }
 }
@@ -708,47 +746,95 @@ const formatDate = (dateString) => {
 
 
 onMounted(async () => {
-  const token = localStorage.getItem('authToken')
-  if (!token) {
-    router.push('/login')
-    return
-  }
-
-  try {
-    await fetchUser()
-    await fetchCards()
-
-    // Для отладки - проверим, какие роли у пользователя
-    console.log('Роли пользователя:', user.value?.roles)
-  } catch (error) {
-    console.error('Ошибка инициализации:', error)
-    router.push('/login')
-  }
+  await fetchUser()
 })
 </script>
 
 <style scoped>
 
+* {
+  font-family: 'Marmelad', sans-serif;
+}
+
+.avatar-upload {
+  position: relative;
+  margin-top: 32px;
+  cursor: pointer;
+}
+
+
+
+.avatar-link {
+  display: block;
+  margin-top: 32px;
+}
+
+.profile-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  transition: all 0.3s;
+}
+
+.avatar-link:hover .profile-img {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-upload:hover .profile-img {
+  opacity: 0.8;
+}
+
+.profile-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  transition: opacity 0.3s;
+}
+
+
+.logout-button {
+  margin-top: auto;
+  margin-bottom: 20px;
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-button:hover {
+  background-color: #d32f2f;
+}
+
+
+
 .task-assignee {
-  margin: 5px 0;
+  margin: 0.3125em 0;
   font-size: 0.8em;
   color: #555;
 }
 
 .assignee-label {
+  font-size: 13px;
   font-weight: bold;
-  margin-right: 5px;
+  margin-right: 0.3125em;
 }
 
 .assignee-name {
+  font-size: 1px;
   color: #1e3a8a;
 }
 
 /* Добавить в секцию стилей */
 .admin-actions {
   display: flex;
-  gap: 5px;
-  margin-top: 5px;
+  gap: 0.3125em;
+  margin-top: 0.3125em;
 }
 
 .edit-button, .delete-button {
@@ -756,7 +842,7 @@ onMounted(async () => {
   border: none;
   cursor: pointer;
   font-size: 14px;
-  padding: 2px 5px;
+  padding: 2px 0.3125em;
 }
 
 .edit-button:hover {
@@ -770,7 +856,7 @@ onMounted(async () => {
 .task-footer {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0.3125em;
 }
 
 
@@ -803,22 +889,22 @@ onMounted(async () => {
 .review-actions {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0.3125em;
   width: 100%;
 }
 
 .review-buttons {
   display: flex;
-  gap: 5px;
+  gap: 0.3125em;
   justify-content: space-between;
 }
 
 .reject-button {
-  background-color: #f44336;
+  background-color: #4937B5;
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 5px 10px;
+  border-radius: 50px;
+  padding: 0.3125em 10px;
   font-size: 12px;
   cursor: pointer;
   flex: 1;
@@ -829,8 +915,8 @@ onMounted(async () => {
   background-color: #4CAF50;
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 5px 10px;
+  border-radius: 50px;
+  padding: 0.3125em 10px;
   font-size: 12px;
   cursor: pointer;
   flex: 1;
@@ -842,8 +928,8 @@ onMounted(async () => {
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 5px 10px;
-  font-size: 12px;
+  padding: 0.3125em 10px;
+  font-size: 20px;
   cursor: pointer;
   width: 100%;
 }
@@ -917,31 +1003,31 @@ textarea.form-input {
 
 /* Основные стили */
 .workspace-container {
-  background-color: #d1d5db;
-  min-height: 100vh;
+  width: 100%;
+  max-width: 1400px; /* или другое значение по вашему выбору */
+  margin: 0 auto;
+  padding: 20px;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 16px;
 }
 
 .workspace-wrapper {
   background-color: white;
   width: 100%;
-  max-width: 1200px;
   height: 600px;
   display: flex;
-  border: 1px solid #e5e7eb;
+  min-height: 80vh; /* 80% высоты viewport */
+  border-radius: 12px;
 }
 
 /* Боковая панель */
 .sidebar {
-  width: 120px;
+  width: 150px; /* было 120px */
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 16px;
+  padding: 20px 0;
   position: relative;
 }
 
@@ -965,7 +1051,7 @@ textarea.form-input {
 .profile-link {
   margin-top: 8px;
   font-size: 14px;
-  color: #1e3a8a;
+  color: #4937B5;
   text-decoration: none;
 }
 
@@ -982,7 +1068,7 @@ textarea.form-input {
 
 .sidebar-nav a {
   font-size: 14px;
-  color: #1e3a8a;
+  color: #4937B5;
   text-decoration: none;
 }
 
@@ -991,11 +1077,15 @@ textarea.form-input {
 }
 
 .add-button {
+  background-image: url("public/img/plus.svg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 20px 20px;
   margin-top: auto;
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #1e3a8a;
+  background-color: #4937B5;
   color: white;
   border: none;
   display: flex;
@@ -1006,14 +1096,15 @@ textarea.form-input {
   margin-bottom: 8px;
 }
 
+
 .add-button:hover {
   background-color: #1e40af;
 }
 
 .task-card {
   background-color: white;
-  border: 1px solid #9ca3af;
-  border-radius: 8px;
+  border: 1px solid #BAB9BF;
+  border-radius: 25px;
   padding: 12px;
   font-size: 12px;
   margin-bottom: 8px;
@@ -1025,6 +1116,7 @@ textarea.form-input {
 }
 
 .task-title {
+  font-size: 15px;
   font-weight: bold;
   margin-bottom: 8px;
   word-break: break-word;
@@ -1034,7 +1126,7 @@ textarea.form-input {
 
 .task-deadline {
   color: #555;
-  font-size: 0.8em;
+  font-size: 1em;
 }
 
 .task-footer {
@@ -1045,12 +1137,12 @@ textarea.form-input {
 }
 
 .details-button {
-  font-size: 10px;
+  font-size: 12px;
   background: none;
   border: none;
   cursor: pointer;
   color: #4937B5;
-  margin-right: 5px;
+  margin-right: 0.3125em;
 }
 
 .details-button:hover {
@@ -1070,25 +1162,59 @@ textarea.form-input {
 }
 
 .logo {
-  font-family: 'Times New Roman', serif;
   font-size: 28px;
   font-weight: bold;
-  color: #1e3a8a;
+  color: #4937B5;
   line-height: 1;
   user-select: none;
   margin-top: 10px;
 }
 
-/* Основная область с колонками */
+.logo img {
+  width: 100px;
+  height: 50px;
+}
+.columns-container::-webkit-scrollbar {
+  height: 8px;
+}
+.columns-container::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.columns-container::-webkit-scrollbar-thumb {
+  background-color: #4937B5;
+  border-radius: 4px;
+}
+
 .columns-container {
-  flex: 1;
+  width: 100%;
   display: flex;
-  padding: 20px;
-  gap: 20px;
+  padding: 25px;
+  gap: 25px;
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4937B5 #f0f0f0;
+}
+
+.columns-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.columns-container::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.columns-container::-webkit-scrollbar-thumb {
+  background-color: #4937B5;
+  border-radius: 4px;
 }
 
 .column {
+  flex: 1;
+  padding-right: 1em;
+  border-right: 1px solid #e5e7eb;
   width: 180px;
   flex-shrink: 0;
   display: flex;
@@ -1096,13 +1222,22 @@ textarea.form-input {
   gap: 15px;
 }
 
+.column-ready {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+
 .column-header {
   text-align: center;
   font-size: 14px;
-  color: #1e3a8a;
-  border: 1px solid #1e3a8a;
+  color: #000000;
+  border: 1px solid #4937B5;
   border-radius: 20px;
-  padding: 5px 0;
+  padding: 0.3125em 0;
   margin-bottom: 10px;
 }
 
@@ -1131,11 +1266,11 @@ textarea.form-input {
 }
 
 .modal-content {
+  width: 90%; /* Установите ширину в процентах */
+  max-width: 100%;
   background-color: white;
   border-radius: 8px;
   padding: 24px;
-  width: 100%;
-  max-width: 400px;
   color: #555;
 }
 
